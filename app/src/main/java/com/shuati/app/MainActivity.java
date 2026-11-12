@@ -30,6 +30,13 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String DEFAULT_TAILSCALE_URL = "http://100.122.70.99:8087";
+    private static final String[] FALLBACK_URLS = {
+        "http://100.122.70.99:8087",  // Tailscale IP
+        "http://192.168.2.166:8087",  // LAN IP
+        "http://127.0.0.1:8087"       // Localhost
+    };
+    private int currentFallbackIndex = 0;
     private WebView webView;
     private SwipeRefreshLayout swipeRefresh;
     private ProgressBar progressBar;
@@ -63,15 +70,10 @@ public class MainActivity extends AppCompatActivity {
         setupWebView();
         setupSwipeRefresh();
 
-        // 首次启动或无地址时，打开设置
-        String serverUrl = prefs.getString("server_url", "");
-        if (serverUrl.isEmpty()) {
-            log("MainActivity", "首次启动，打开设置");
-            openSettings();
-        } else {
-            log("MainActivity", "加载地址: " + serverUrl);
-            loadUrl(serverUrl);
-        }
+        // 默认使用 Tailscale 地址，直接加载
+        String serverUrl = prefs.getString("server_url", DEFAULT_TAILSCALE_URL);
+        log("MainActivity", "加载地址: " + serverUrl);
+        loadUrl(serverUrl);
     }
 
     private void initLogger() {
@@ -144,10 +146,31 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                currentFallbackIndex = 0; // 成功加载后重置备用索引
+                progressBar.setVisibility(View.GONE);
+                tvStatus.setVisibility(View.GONE);
+                log("WebView", "加载完成: " + url);
+            }
+
+            @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 logError("WebView", "加载失败: " + failingUrl + " - " + description, null);
-                tvStatus.setText("连接失败: " + description);
-                tvStatus.setVisibility(View.VISIBLE);
+                
+                // 尝试备用地址
+                if (currentFallbackIndex < FALLBACK_URLS.length - 1) {
+                    currentFallbackIndex++;
+                    String nextUrl = FALLBACK_URLS[currentFallbackIndex];
+                    log("WebView", "尝试备用地址: " + nextUrl);
+                    tvStatus.setText("连接失败，尝试备用地址...");
+                    tvStatus.setVisibility(View.VISIBLE);
+                    view.loadUrl(nextUrl);
+                } else {
+                    // 所有地址都失败
+                    tvStatus.setText("连接失败: " + description + "\n点击右上角设置按钮配置服务器地址");
+                    tvStatus.setVisibility(View.VISIBLE);
+                }
             }
         });
 
@@ -183,6 +206,7 @@ public class MainActivity extends AppCompatActivity {
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             url = "http://" + url;
         }
+        currentFallbackIndex = 0; // 重置备用索引
         log("MainActivity", "加载 URL: " + url);
         tvStatus.setText("正在连接...");
         tvStatus.setVisibility(View.VISIBLE);
