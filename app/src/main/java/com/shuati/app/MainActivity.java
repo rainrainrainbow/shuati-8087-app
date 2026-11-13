@@ -43,6 +43,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvStatus;
     private SharedPreferences prefs;
     private File logFile;
+    
+    // Tailscale 内置 VPN
+    private TailscaleManager tailscaleManager;
+    private boolean useTailscaleVpn = true;  // 默认使用内置 Tailscale
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,10 +74,48 @@ public class MainActivity extends AppCompatActivity {
         setupWebView();
         setupSwipeRefresh();
 
-        // 默认使用 Tailscale 地址，直接加载
-        String serverUrl = prefs.getString("server_url", DEFAULT_TAILSCALE_URL);
-        log("MainActivity", "加载地址: " + serverUrl);
-        loadUrl(serverUrl);
+        // 启动内置 Tailscale VPN
+        if (useTailscaleVpn) {
+            startTailscaleVpn();
+        } else {
+            String serverUrl = prefs.getString("server_url", DEFAULT_TAILSCALE_URL);
+            log("MainActivity", "加载地址: " + serverUrl);
+            loadUrl(serverUrl);
+        }
+    }
+    
+    private void startTailscaleVpn() {
+        log("Tailscale", "启动内置 Tailscale VPN...");
+        tvStatus.setText("正在连接 Tailscale...");
+        tvStatus.setVisibility(View.VISIBLE);
+        
+        tailscaleManager = new TailscaleManager(this, new TailscaleManager.TailscaleCallback() {
+            @Override
+            public void onVpnPermissionNeeded(Intent intent) {
+                log("Tailscale", "需要 VPN 权限授权");
+                Toast.makeText(MainActivity.this, "请授权 VPN 连接以访问服务器", Toast.LENGTH_LONG).show();
+                startActivityForResult(intent, TailscaleManager.getVpnRequestCode());
+            }
+            
+            @Override
+            public void onConnected(int localPort) {
+                log("Tailscale", "已连接！本地代理端口: " + localPort);
+                String proxyUrl = "http://127.0.0.1:" + localPort;
+                Toast.makeText(MainActivity.this, "Tailscale 已连接", Toast.LENGTH_SHORT).show();
+                loadUrl(proxyUrl);
+            }
+            
+            @Override
+            public void onError(String error) {
+                logError("Tailscale", "连接失败: " + error, null);
+                Toast.makeText(MainActivity.this, "Tailscale 连接失败，尝试直接连接", Toast.LENGTH_SHORT).show();
+                useTailscaleVpn = false;
+                String serverUrl = prefs.getString("server_url", DEFAULT_TAILSCALE_URL);
+                loadUrl(serverUrl);
+            }
+        });
+        
+        tailscaleManager.start();
     }
 
     private void initLogger() {
@@ -221,9 +263,21 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 100 && resultCode == RESULT_OK) {
+        if (requestCode == TailscaleManager.getVpnRequestCode()) {
+            if (resultCode == RESULT_OK) {
+                log("Tailscale", "VPN 权限已授予");
+                tailscaleManager.onVpnGranted();
+            } else {
+                log("Tailscale", "VPN 权限被拒绝");
+                Toast.makeText(this, "VPN 权限被拒绝，无法连接 Tailscale", Toast.LENGTH_LONG).show();
+                useTailscaleVpn = false;
+                String serverUrl = prefs.getString("server_url", DEFAULT_TAILSCALE_URL);
+                loadUrl(serverUrl);
+            }
+        } else if (requestCode == 100 && resultCode == RESULT_OK) {
             String serverUrl = prefs.getString("server_url", "");
             if (!serverUrl.isEmpty()) {
+                useTailscaleVpn = false;
                 loadUrl(serverUrl);
             }
         }
@@ -271,6 +325,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (tailscaleManager != null) {
+            tailscaleManager.stop();
+        }
         if (webView != null) {
             webView.destroy();
         }
