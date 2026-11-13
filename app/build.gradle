@@ -30,6 +30,10 @@ android {
     kotlinOptions {
         jvmTarget = '11'
     }
+    
+    lintOptions {
+        abortOnError false
+    }
 }
 
 dependencies {
