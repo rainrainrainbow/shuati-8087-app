@@ -2,6 +2,7 @@ package com.shuati.app;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.net.VpnService;
 import android.util.Log;
 
 import com.tailscale.mobile.TailscaleConfig;
@@ -55,23 +56,19 @@ public class TailscaleManager {
         // 配置 Tailscale
         TailscaleConfig config = new TailscaleConfig(
             AUTH_KEY,           // authKey
-            PEER_IP,            // targetHost
-            PEER_PORT,          // targetPort
-            "刷题App",          // appName
-            true                // autoConnect
+            PEER_IP,            // peerIp
+            PEER_PORT,          // peerPort
+            "shuati-app"        // hostname
         );
         
-        // 创建 VPN 服务 Intent
-        Intent vpnIntent = TailscaleProxyService.Companion.createIntent(activity, config);
-        
         // 请求 VPN 权限
+        Intent vpnIntent = VpnService.prepare(activity);
         if (vpnIntent != null) {
             Log.d(TAG, "Requesting VPN permission...");
             callback.onVpnPermissionNeeded(vpnIntent);
         } else {
-            Log.e(TAG, "Failed to create VPN intent");
-            isConnecting = false;
-            callback.onError("无法创建 VPN 连接");
+            Log.d(TAG, "VPN permission already granted, starting service...");
+            onVpnGranted();
         }
     }
     
@@ -81,9 +78,16 @@ public class TailscaleManager {
     public void onVpnGranted() {
         Log.d(TAG, "VPN permission granted, starting service...");
         
+        // 配置 Tailscale
+        TailscaleConfig config = new TailscaleConfig(
+            AUTH_KEY,           // authKey
+            PEER_IP,            // peerIp
+            PEER_PORT,          // peerPort
+            "shuati-app"        // hostname
+        );
+        
         // 启动 VPN 服务
-        Intent serviceIntent = new Intent(activity, TailscaleProxyService.class);
-        activity.startService(serviceIntent);
+        TailscaleProxyService.Companion.start(activity, config);
         
         // 等待服务就绪并获取本地代理端口
         pollForPort();
