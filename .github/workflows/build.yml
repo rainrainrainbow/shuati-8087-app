@@ -24,11 +24,14 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Set up NDK (needed to build the JNI bridge for libtailscale.so)
-      uses: android-actions/setup-ndk@v3
-      with:
-        ndk-version: '26.1.10909125'
-        cmake-version: '3.22.1'
+    - name: Install NDK 26.1 + CMake 3.22 (pinned in app/build.gradle)
+      run: |
+        set -e
+        SDK="$ANDROID_HOME"
+        SDKMANAGER="$(command -v sdkmanager || echo "$SDK/cmdline-tools/latest/bin/sdkmanager")"
+        echo "Using sdkmanager: $SDKMANAGER"
+        yes | "$SDKMANAGER" --licenses > /dev/null || true
+        "$SDKMANAGER" --install "ndk;26.1.10909125" "cmake;3.22.1"
 
     - name: Build with Gradle
       run: ./gradlew build
