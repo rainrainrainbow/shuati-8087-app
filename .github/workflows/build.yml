@@ -41,9 +41,12 @@ jobs:
 
     - name: Upload Release APK
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: shuati-release-apk
-        path: app/build/outputs/apk/release/app-release.apk
+        path: |
+          app/build/outputs/apk/release/app-release.apk
+          app/build/outputs/apk/release/app-release-unsigned.apk
 
     - name: Build Debug APK
       run: ./gradlew assembleDebug
