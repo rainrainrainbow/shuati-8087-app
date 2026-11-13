@@ -6,13 +6,24 @@ plugins {
 android {
     namespace 'com.shuati.app'
     compileSdk 34
+    ndkVersion '26.1.10909125'
 
     defaultConfig {
         applicationId "com.shuati.app"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
+
+        ndk {
+            // Only ABIs that ship libtailscale.so
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags ''
+            }
+        }
     }
 
     buildTypes {
@@ -22,17 +33,30 @@ android {
         }
     }
 
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
-    
+
     kotlinOptions {
         jvmTarget = '11'
     }
-    
+
     lintOptions {
         abortOnError false
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging false
+        }
     }
 }
 

@@ -14,4 +14,9 @@
         android:icon="@android:drawable/ic_menu_preferences"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_share_log"
+        android:title="发送日志"
+        app:showAsAction="never" />
+
 </menu>

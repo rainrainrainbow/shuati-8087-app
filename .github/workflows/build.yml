@@ -24,6 +24,12 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: Set up NDK (needed to build the JNI bridge for libtailscale.so)
+      uses: android-actions/setup-ndk@v3
+      with:
+        ndk-version: '26.1.10909125'
+        cmake-version: '3.22.1'
+
     - name: Build with Gradle
       run: ./gradlew build
 
