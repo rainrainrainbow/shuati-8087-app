@@ -32,7 +32,4 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.webkit:webkit:1.8.0'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
-    // Tailscale 内置 VPN（通过 JitPack）
-    implementation 'com.github.leondgarse:tailscale_mobile:1.0.0'
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.0'
 }
